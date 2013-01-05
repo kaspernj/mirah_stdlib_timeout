@@ -9,7 +9,6 @@ class Timeout
     
     thread_chk = Thread.new do
       begin
-        puts "Sleeping for milisecs: #{sleeptime}"
         Thread.sleep(sleeptime)
         thread_cur.interrupt if !instance.isDone
       rescue InterruptedException
