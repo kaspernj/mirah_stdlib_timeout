@@ -1,13 +1,20 @@
 package org.kaspernj.mirah.stdlib.timeout
 
 class Timeout
-  def do_timeout(seconds:double, error:Class, blk:TimeoutBlock):Object
+  def initialize(seconds:double, error:Class)
+    @sleeptime = Math.round(seconds * 1000.0)
+    @error_class = error
+  end
+  
+  def run_timeout(blk:TimeoutBlock):Object
     thread_cur = Thread.currentThread
     instance = self
-    sleeptime = Math.round(seconds * 1000.0)
     @done = false
+    on_interrupt = @on_interrupt
+    error_class = @error_class
+    sleeptime = @sleeptime
     
-    if error == nil
+    if error_class == nil
       expect_interrupt = true
     else
       expect_interrupt = false
@@ -17,16 +24,33 @@ class Timeout
       begin
         Thread.sleep(sleeptime)
         
-        if !instance.isDone
-          if error == nil
+        if !instance.is_done
+          #Sometimes it can be nice to be notified about a thread should be interrupted like on socket operations, which can block the interrupting.
+          if on_interrupt != nil
+            on_interrupt.each do |callback_blk|
+              begin
+                on_interrupt_blk = Runnable(callback_blk)
+                on_interrupt_blk.run
+              rescue => e
+                System.err.println("Error while running 'on_interrupt' block: #{e.getMessage}")
+                e.printStackTrace(System.err)
+              end
+            end
+          end
+          
+          if error_class == nil
             #No custom error have been given - just try to interrupt the running thread normally.
-            thread_cur.interrupt if !instance.isDone
+            puts "Sending interrupt to thread."
+            thread_cur.interrupt if !instance.is_done
           else
+            puts "Sending custom error to thread."
             #Custom error has been given - make instance and try to stop the thread with that.
-            error_obj = Throwable(error.newInstance)
-            thread_cur.stop(error_obj)
+            error_obj = Throwable(error_class.newInstance)
+            thread_cur.stop(error_obj) if !instance.is_done
           end
         end
+        
+        return
       rescue InterruptedException
         #Ignore - block was done running before wait was reached and the check-thread was interrupted to not use resources.
       end
@@ -56,16 +80,22 @@ class Timeout
     return res
   end
   
-  def isDone
+  def is_done:boolean
     return @done
   end
   
+  def on_interrupt(blk:Runnable):void
+    @on_interrupt = java::util::ArrayList.new if @on_interrupt == nil
+    @on_interrupt.add(blk)
+    return
+  end
+  
   def self.timeout(seconds:double, blk:TimeoutBlock):Object
-    return Timeout.new.do_timeout(seconds, nil, blk)
+    return Timeout.new(seconds, nil).run_timeout(blk)
   end
   
   def self.timeout(seconds:double, error:Class = nil, blk:TimeoutBlock = nil):Object
-    return Timeout.new.do_timeout(seconds, error, blk)
+    return Timeout.new(seconds, error).run_timeout(blk)
   end
   
   interface TimeoutBlock do

@@ -71,6 +71,8 @@ class TestTimeout
             #ignore - be stubborn! Dont want to die with normal interrupt!
           end
         end
+        
+        return nil
       end
       
       raise "This should not happen."
@@ -78,6 +80,30 @@ class TestTimeout
       #expected
     end
     
+    return
+  end
+  
+  $Test
+  def testOnInterrupt
+    timeout = Timeout.new(0.25, nil)
+    
+    on_interrupt_called = false
+    timeout.on_interrupt do
+      on_interrupt_called = true
+    end
+    
+    begin
+      timeout.run_timeout do
+        Thread.sleep(500)
+        return nil
+      end
+      
+      raise "Never expected to reach this."
+    rescue TimeoutError
+      #Expected to happen.
+    end
+    
+    raise "Expected 'on_interrupt_called' to be true but it wasnt: '#{on_interrupt_called}'." if !on_interrupt_called
     return
   end
 end
