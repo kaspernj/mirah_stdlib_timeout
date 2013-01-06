@@ -1,7 +1,7 @@
 package org.kaspernj.mirah.stdlib.timeout
 
 class Timeout
-  def initialize(seconds:double, error:Class)
+  def initialize(seconds:double, error:Class = nil)
     @sleeptime = Math.round(seconds * 1000.0)
     @error_class = error
   end
