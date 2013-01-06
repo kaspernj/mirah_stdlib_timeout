@@ -31,9 +31,11 @@ class Timeout
               begin
                 on_interrupt_blk = Runnable(callback_blk)
                 on_interrupt_blk.run
+                nil
               rescue => e
                 System.err.println("Error while running 'on_interrupt' block: #{e.getMessage}")
                 e.printStackTrace(System.err)
+                nil
               end
             end
           end
